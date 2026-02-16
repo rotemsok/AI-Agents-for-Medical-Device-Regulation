@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from typing import Iterable
 
 from app.models import (
@@ -39,24 +40,41 @@ class IntakeValidator:
                 )
             )
 
-        if len(payload.risk_class) != len(payload.target_markets):
+        market_counts = Counter(entry.market for entry in payload.risk_class)
+        duplicate_markets = sorted(market for market, count in market_counts.items() if count > 1)
+        if duplicate_markets:
             issues.append(
                 ValidationIssue(
-                    code="GATE-03-RISK-CLASS",
-                    message="Risk class must be supplied for each target market.",
+                    code="GATE-03-RISK-CLASS-DUPLICATE",
+                    message=f"Duplicate risk class entries found for markets: {duplicate_markets}",
                 )
             )
 
-        risk_by_market = {entry.market: entry for entry in payload.risk_class}
-        for market in payload.target_markets:
-            entry = risk_by_market.get(market)
-            if not entry:
-                continue
+        target_market_set = set(payload.target_markets)
+        missing_target_markets = sorted(market for market in target_market_set if market_counts.get(market, 0) == 0)
+        if missing_target_markets:
+            issues.append(
+                ValidationIssue(
+                    code="GATE-03-RISK-CLASS-MISSING-TARGET-MARKET",
+                    message=f"Missing risk class entries for target markets: {missing_target_markets}",
+                )
+            )
+
+        extraneous_markets = sorted(market for market in market_counts if market not in target_market_set)
+        if extraneous_markets:
+            issues.append(
+                ValidationIssue(
+                    code="GATE-03-RISK-CLASS-EXTRANEOUS-MARKET",
+                    message=f"Risk class entries found for non-target markets: {extraneous_markets}",
+                )
+            )
+
+        for entry in payload.risk_class:
             if entry.confidence == ConfidenceLevel.low and not entry.mitigation_plan:
                 issues.append(
                     ValidationIssue(
                         code="RISK-LOW-CONFIDENCE-WITHOUT-MITIGATION",
-                        message=f"Low-confidence risk class for {market} requires mitigation plan.",
+                        message=f"Low-confidence risk class for {entry.market} requires mitigation plan.",
                     )
                 )
 

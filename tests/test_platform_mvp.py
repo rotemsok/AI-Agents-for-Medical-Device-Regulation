@@ -93,6 +93,58 @@ def test_evidence_validation_returns_missing_evidence_when_unlinked():
     assert result["status"] == "missing_evidence"
 
 
+def test_intake_validation_flags_duplicate_risk_class_markets():
+    payload = valid_intake_payload()
+    payload["risk_class"].append(
+        {
+            "market": "US",
+            "proposed_classification": "Class II",
+            "rationale": "duplicate entry",
+            "confidence": "high",
+            "open_questions": [],
+        }
+    )
+
+    response = client.post("/intake/validate", json=payload)
+    body = response.json()
+
+    assert response.status_code == 200
+    assert body["valid"] is False
+    assert any(issue["code"] == "GATE-03-RISK-CLASS-DUPLICATE" for issue in body["issues"])
+
+
+def test_intake_validation_flags_missing_target_market_risk_class_entry():
+    payload = valid_intake_payload()
+    payload["risk_class"] = [entry for entry in payload["risk_class"] if entry["market"] != "EU"]
+
+    response = client.post("/intake/validate", json=payload)
+    body = response.json()
+
+    assert response.status_code == 200
+    assert body["valid"] is False
+    assert any(issue["code"] == "GATE-03-RISK-CLASS-MISSING-TARGET-MARKET" for issue in body["issues"])
+
+
+def test_intake_validation_flags_extraneous_risk_class_market_entry():
+    payload = valid_intake_payload()
+    payload["risk_class"].append(
+        {
+            "market": "CA",
+            "proposed_classification": "Class II",
+            "rationale": "future expansion",
+            "confidence": "medium",
+            "open_questions": [],
+        }
+    )
+
+    response = client.post("/intake/validate", json=payload)
+    body = response.json()
+
+    assert response.status_code == 200
+    assert body["valid"] is False
+    assert any(issue["code"] == "GATE-03-RISK-CLASS-EXTRANEOUS-MARKET" for issue in body["issues"])
+
+
 def test_packet_validation_fails_without_approvals_and_verified_high_risk_controls():
     response = client.post(
         "/workflow/packets/validate",
