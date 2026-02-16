@@ -1,0 +1,33 @@
+@import '../styles/tokens.css';
+
+.traceability-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 100%;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--border-subtle);
+  background: var(--color-neutral-50);
+  color: var(--color-neutral-800);
+  text-decoration: none;
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-evidence-id);
+  line-height: var(--line-height-tight);
+}
+
+.traceability-chip:hover {
+  border-color: var(--color-trust-500);
+}
+
+.traceability-chip__prefix {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.03em;
+  color: var(--color-trust-700);
+}
+
+.traceability-chip__id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,33 @@
+@import '../styles/tokens.css';
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.75rem;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--border-width-thin) solid transparent;
+  font-family: var(--font-family-system);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+.status-badge--approved {
+  background: var(--color-status-pass-bg);
+  color: var(--color-status-pass-fg);
+  border-color: var(--color-status-pass-border);
+}
+
+.status-badge--missing-evidence {
+  background: var(--color-status-warn-bg);
+  color: var(--color-status-warn-fg);
+  border-color: var(--color-status-warn-border);
+}
+
+.status-badge--blocked {
+  background: var(--color-status-blocking-bg);
+  color: var(--color-status-blocking-fg);
+  border-color: var(--color-status-blocking-border);
+}
