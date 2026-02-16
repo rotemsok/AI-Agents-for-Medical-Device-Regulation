@@ -114,6 +114,14 @@ class EvidenceObject(BaseModel):
 class StatementCandidate(BaseModel):
     statement: str
     evidence_ids: List[str] = Field(default_factory=list)
+    target_jurisdictions: List[str] = Field(default_factory=list)
+
+
+class JurisdictionMismatchDetail(BaseModel):
+    required_jurisdictions: List[str]
+    covered_jurisdictions: List[str]
+    missing_jurisdictions: List[str]
+    evidence_jurisdictions: dict[str, List[str]]
 
 
 class StatementValidationResult(BaseModel):
@@ -121,6 +129,7 @@ class StatementValidationResult(BaseModel):
     confidence: ConfidenceLevel | None = None
     status: str
     reason: str | None = None
+    jurisdiction_mismatch: JurisdictionMismatchDetail | None = None
 
 
 class RequirementLink(BaseModel):

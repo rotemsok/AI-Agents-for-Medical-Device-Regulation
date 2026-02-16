@@ -95,6 +95,8 @@ class EvidencePolicy:
         statements: Iterable[StatementCandidate],
         available_evidence_ids: set[str],
         evidence_confidence_map: dict[str, ConfidenceLevel],
+        evidence_jurisdiction_map: dict[str, list[str]],
+        batch_target_jurisdictions: list[str] | None = None,
     ) -> list[StatementValidationResult]:
         results: list[StatementValidationResult] = []
         confidence_rank = {
@@ -125,6 +127,33 @@ class EvidencePolicy:
                     )
                 )
                 continue
+
+            required_jurisdictions = set(candidate.target_jurisdictions or (batch_target_jurisdictions or []))
+            evidence_scope = {ev: sorted(set(evidence_jurisdiction_map.get(ev, []))) for ev in candidate.evidence_ids}
+
+            if required_jurisdictions:
+                covered_jurisdictions = {
+                    jurisdiction
+                    for jurisdictions in evidence_scope.values()
+                    for jurisdiction in jurisdictions
+                    if jurisdiction in required_jurisdictions
+                }
+                missing_jurisdictions = sorted(required_jurisdictions - covered_jurisdictions)
+                if missing_jurisdictions:
+                    results.append(
+                        StatementValidationResult(
+                            statement=candidate.statement,
+                            status="jurisdiction_mismatch",
+                            reason="Evidence is present but does not cover required jurisdictions.",
+                            jurisdiction_mismatch={
+                                "required_jurisdictions": sorted(required_jurisdictions),
+                                "covered_jurisdictions": sorted(covered_jurisdictions),
+                                "missing_jurisdictions": missing_jurisdictions,
+                                "evidence_jurisdictions": evidence_scope,
+                            },
+                        )
+                    )
+                    continue
 
             min_rank = min(confidence_rank[evidence_confidence_map[ev]] for ev in candidate.evidence_ids)
             results.append(
