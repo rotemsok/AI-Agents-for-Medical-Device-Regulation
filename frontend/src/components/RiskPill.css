@@ -1,0 +1,32 @@
+@import '../styles/tokens.css';
+
+.risk-pill {
+  display: inline-block;
+  min-width: 5.25rem;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: var(--border-width-thin) solid transparent;
+  text-align: center;
+  font-family: var(--font-family-system);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.risk-pill--low {
+  color: var(--color-status-pass-fg);
+  border-color: var(--color-status-pass-border);
+  background: var(--color-status-pass-bg);
+}
+
+.risk-pill--medium {
+  color: var(--color-status-warn-fg);
+  border-color: var(--color-status-warn-border);
+  background: var(--color-status-warn-bg);
+}
+
+.risk-pill--high,
+.risk-pill--critical {
+  color: var(--color-status-blocking-fg);
+  border-color: var(--color-status-blocking-border);
+  background: var(--color-status-blocking-bg);
+}
