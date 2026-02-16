@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
+from datetime import timezone
 from enum import Enum
 from hashlib import sha256
 from typing import List
@@ -188,8 +190,25 @@ class AuditEvent(BaseModel):
     hash: str | None = None
 
     def compute_hash(self) -> str:
-        material = (
-            f"{self.event_id}|{self.event_type}|{self.actor}|{self.timestamp.isoformat()}|"
-            f"{self.previous_event_hash}|{self.payload}"
+        normalized_timestamp = self.timestamp
+        if normalized_timestamp.tzinfo is None:
+            normalized_timestamp = normalized_timestamp.replace(tzinfo=timezone.utc)
+        normalized_timestamp = normalized_timestamp.astimezone(timezone.utc)
+
+        canonical_payload = json.dumps(
+            self.payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
         )
+
+        hash_fields = (
+            self.event_id,
+            self.event_type,
+            self.actor,
+            normalized_timestamp.isoformat(),
+            self.previous_event_hash,
+            canonical_payload,
+        )
+        material = "|".join(str(field) for field in hash_fields)
         return sha256(material.encode("utf-8")).hexdigest()
