@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models import (
     AuditEvent,
@@ -19,6 +19,7 @@ audit_log = ImmutableAuditLog()
 class StatementValidationRequest(BaseModel):
     statements: list[StatementCandidate]
     evidence_objects: list[EvidenceObject]
+    target_jurisdictions: list[str] = Field(default_factory=list)
 
 
 @app.get("/health")
@@ -35,7 +36,14 @@ def validate_intake(payload: IntakePayload):
 def validate_statements(payload: StatementValidationRequest):
     evidence_ids = {ev.id for ev in payload.evidence_objects}
     confidence_map = {ev.id: ev.confidence for ev in payload.evidence_objects}
-    return EvidencePolicy.validate_statements(payload.statements, evidence_ids, confidence_map)
+    evidence_jurisdiction_map = {ev.id: ev.jurisdiction_relevance for ev in payload.evidence_objects}
+    return EvidencePolicy.validate_statements(
+        payload.statements,
+        evidence_ids,
+        confidence_map,
+        evidence_jurisdiction_map,
+        payload.target_jurisdictions,
+    )
 
 
 @app.post("/workflow/packets/validate")

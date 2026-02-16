@@ -93,6 +93,106 @@ def test_evidence_validation_returns_missing_evidence_when_unlinked():
     assert result["status"] == "missing_evidence"
 
 
+
+
+def test_evidence_validation_returns_jurisdiction_mismatch_when_out_of_scope():
+    response = client.post(
+        "/evidence/statements/validate",
+        json={
+            "target_jurisdictions": ["US"],
+            "statements": [{"statement": "US claim", "evidence_ids": ["EV-EU"]}],
+            "evidence_objects": [
+                {
+                    "id": "EV-EU",
+                    "source": "eu-mdr",
+                    "version": "v1",
+                    "owner": "RA",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "jurisdiction_relevance": ["EU"],
+                    "confidence": "high",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()[0]
+    assert result["status"] == "jurisdiction_mismatch"
+    assert result["jurisdiction_mismatch"]["required_jurisdictions"] == ["US"]
+    assert result["jurisdiction_mismatch"]["missing_jurisdictions"] == ["US"]
+
+
+def test_evidence_validation_handles_partial_multi_jurisdiction_coverage():
+    response = client.post(
+        "/evidence/statements/validate",
+        json={
+            "statements": [
+                {
+                    "statement": "US and EU claim",
+                    "evidence_ids": ["EV-US"],
+                    "target_jurisdictions": ["US", "EU"],
+                }
+            ],
+            "evidence_objects": [
+                {
+                    "id": "EV-US",
+                    "source": "fda-guidance",
+                    "version": "v1",
+                    "owner": "RA",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "jurisdiction_relevance": ["US"],
+                    "confidence": "medium",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()[0]
+    assert result["status"] == "jurisdiction_mismatch"
+    assert result["jurisdiction_mismatch"]["covered_jurisdictions"] == ["US"]
+    assert result["jurisdiction_mismatch"]["missing_jurisdictions"] == ["EU"]
+
+
+def test_evidence_validation_accepts_full_multi_jurisdiction_coverage():
+    response = client.post(
+        "/evidence/statements/validate",
+        json={
+            "target_jurisdictions": ["US", "EU"],
+            "statements": [
+                {
+                    "statement": "US and EU supported claim",
+                    "evidence_ids": ["EV-US", "EV-EU"],
+                }
+            ],
+            "evidence_objects": [
+                {
+                    "id": "EV-US",
+                    "source": "fda-guidance",
+                    "version": "v1",
+                    "owner": "RA",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "jurisdiction_relevance": ["US"],
+                    "confidence": "high",
+                },
+                {
+                    "id": "EV-EU",
+                    "source": "eu-mdr",
+                    "version": "v1",
+                    "owner": "RA",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "jurisdiction_relevance": ["EU"],
+                    "confidence": "medium",
+                },
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    result = response.json()[0]
+    assert result["status"] == "ok"
+    assert result["confidence"] == "medium"
+
 def test_packet_validation_fails_without_approvals_and_verified_high_risk_controls():
     response = client.post(
         "/workflow/packets/validate",
