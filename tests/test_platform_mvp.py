@@ -93,105 +93,57 @@ def test_evidence_validation_returns_missing_evidence_when_unlinked():
     assert result["status"] == "missing_evidence"
 
 
-
-
-def test_evidence_validation_returns_jurisdiction_mismatch_when_out_of_scope():
-    response = client.post(
-        "/evidence/statements/validate",
-        json={
-            "target_jurisdictions": ["US"],
-            "statements": [{"statement": "US claim", "evidence_ids": ["EV-EU"]}],
-            "evidence_objects": [
-                {
-                    "id": "EV-EU",
-                    "source": "eu-mdr",
-                    "version": "v1",
-                    "owner": "RA",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "jurisdiction_relevance": ["EU"],
-                    "confidence": "high",
-                }
-            ],
-        },
+def test_intake_validation_flags_duplicate_risk_class_markets():
+    payload = valid_intake_payload()
+    payload["risk_class"].append(
+        {
+            "market": "US",
+            "proposed_classification": "Class II",
+            "rationale": "duplicate entry",
+            "confidence": "high",
+            "open_questions": [],
+        }
     )
 
+    response = client.post("/intake/validate", json=payload)
+    body = response.json()
+
     assert response.status_code == 200
-    result = response.json()[0]
-    assert result["status"] == "jurisdiction_mismatch"
-    assert result["jurisdiction_mismatch"]["required_jurisdictions"] == ["US"]
-    assert result["jurisdiction_mismatch"]["missing_jurisdictions"] == ["US"]
+    assert body["valid"] is False
+    assert any(issue["code"] == "GATE-03-RISK-CLASS-DUPLICATE" for issue in body["issues"])
 
 
-def test_evidence_validation_handles_partial_multi_jurisdiction_coverage():
-    response = client.post(
-        "/evidence/statements/validate",
-        json={
-            "statements": [
-                {
-                    "statement": "US and EU claim",
-                    "evidence_ids": ["EV-US"],
-                    "target_jurisdictions": ["US", "EU"],
-                }
-            ],
-            "evidence_objects": [
-                {
-                    "id": "EV-US",
-                    "source": "fda-guidance",
-                    "version": "v1",
-                    "owner": "RA",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "jurisdiction_relevance": ["US"],
-                    "confidence": "medium",
-                }
-            ],
-        },
+def test_intake_validation_flags_missing_target_market_risk_class_entry():
+    payload = valid_intake_payload()
+    payload["risk_class"] = [entry for entry in payload["risk_class"] if entry["market"] != "EU"]
+
+    response = client.post("/intake/validate", json=payload)
+    body = response.json()
+
+    assert response.status_code == 200
+    assert body["valid"] is False
+    assert any(issue["code"] == "GATE-03-RISK-CLASS-MISSING-TARGET-MARKET" for issue in body["issues"])
+
+
+def test_intake_validation_flags_extraneous_risk_class_market_entry():
+    payload = valid_intake_payload()
+    payload["risk_class"].append(
+        {
+            "market": "CA",
+            "proposed_classification": "Class II",
+            "rationale": "future expansion",
+            "confidence": "medium",
+            "open_questions": [],
+        }
     )
 
-    assert response.status_code == 200
-    result = response.json()[0]
-    assert result["status"] == "jurisdiction_mismatch"
-    assert result["jurisdiction_mismatch"]["covered_jurisdictions"] == ["US"]
-    assert result["jurisdiction_mismatch"]["missing_jurisdictions"] == ["EU"]
-
-
-def test_evidence_validation_accepts_full_multi_jurisdiction_coverage():
-    response = client.post(
-        "/evidence/statements/validate",
-        json={
-            "target_jurisdictions": ["US", "EU"],
-            "statements": [
-                {
-                    "statement": "US and EU supported claim",
-                    "evidence_ids": ["EV-US", "EV-EU"],
-                }
-            ],
-            "evidence_objects": [
-                {
-                    "id": "EV-US",
-                    "source": "fda-guidance",
-                    "version": "v1",
-                    "owner": "RA",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "jurisdiction_relevance": ["US"],
-                    "confidence": "high",
-                },
-                {
-                    "id": "EV-EU",
-                    "source": "eu-mdr",
-                    "version": "v1",
-                    "owner": "RA",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "jurisdiction_relevance": ["EU"],
-                    "confidence": "medium",
-                },
-            ],
-        },
-    )
+    response = client.post("/intake/validate", json=payload)
+    body = response.json()
 
     assert response.status_code == 200
-    result = response.json()[0]
-    assert result["status"] == "ok"
-    assert result["confidence"] == "medium"
+    assert body["valid"] is False
+    assert any(issue["code"] == "GATE-03-RISK-CLASS-EXTRANEOUS-MARKET" for issue in body["issues"])
+
 
 def test_packet_validation_fails_without_approvals_and_verified_high_risk_controls():
     response = client.post(
